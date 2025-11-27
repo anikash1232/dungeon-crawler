@@ -169,7 +169,7 @@ public class BoardImpl implements Board {
       if (p instanceof Exit) continue;
       if (p instanceof Enemy) continue;
 
-      options.add(new int[]{nr, nc});
+      options.add(new int[] {nr, nc});
     }
 
     if (options.isEmpty()) return CONTINUE;
