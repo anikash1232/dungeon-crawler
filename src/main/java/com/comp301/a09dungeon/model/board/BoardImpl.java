@@ -1,9 +1,9 @@
 package com.comp301.a09dungeon.model.board;
 
 import com.comp301.a09dungeon.model.pieces.*;
-import java.util.Random;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class BoardImpl implements Board {
 

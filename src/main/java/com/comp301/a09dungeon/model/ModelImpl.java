@@ -3,8 +3,8 @@ package com.comp301.a09dungeon.model;
 import com.comp301.a09dungeon.model.board.Board;
 import com.comp301.a09dungeon.model.board.BoardImpl;
 import com.comp301.a09dungeon.model.board.Posn;
-import com.comp301.a09dungeon.model.pieces.Piece;
 import com.comp301.a09dungeon.model.pieces.CollisionResult;
+import com.comp301.a09dungeon.model.pieces.Piece;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +15,7 @@ public class ModelImpl implements Model {
     private int highScore;
     private int level;
     private STATUS status;
-    private List<Observer> observers;
+    private final List<Observer> observers;
 
     public ModelImpl(int width, int height) {
         this.board = new BoardImpl(width, height);

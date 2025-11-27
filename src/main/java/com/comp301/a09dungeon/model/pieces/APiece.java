@@ -7,11 +7,6 @@ public abstract class APiece implements Piece {
   private final String resourcePath;
   private Posn position;
 
-  public APiece() {
-    this.name = null;
-    this.resourcePath = null;
-  }
-
   public APiece(String name, String resourcePath) {
     this.name = name;
     this.resourcePath = resourcePath;
