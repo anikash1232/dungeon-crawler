@@ -114,20 +114,26 @@ public class BoardImpl implements Board {
 
   @Override
   public CollisionResult moveHero(int drow, int dcol) {
-
-
     int r = heroPosn.getRow();
     int c = heroPosn.getCol();
     int nr = r + drow;
     int nc = c + dcol;
 
-    if (!inBounds(nr, nc)) {
+    if (!inBounds(nr, nc) || board[nr][nc] instanceof Wall) {
       return new CollisionResult(0, CollisionResult.Result.CONTINUE);
     }
 
     Piece target = board[nr][nc];
+    if (!(target == null || target instanceof Treasure || target instanceof Exit || target instanceof Enemy)) {
+      return new CollisionResult(0, CollisionResult.Result.CONTINUE);
+    }
+
     Hero hero = (Hero) board[r][c];
     CollisionResult heroCR = hero.collide(target);
+
+    if (target instanceof Treasure) {
+      board[nr][nc] = null;
+    }
 
     if (heroCR.getResults() == CollisionResult.Result.GAME_OVER) {
       return heroCR;
@@ -181,7 +187,6 @@ public class BoardImpl implements Board {
       if (!inBounds(nr, nc)) continue;
       Piece t = board[nr][nc];
       if (t instanceof Wall) continue;
-      if (t instanceof Exit) continue;
       if (t instanceof Enemy) continue;
       options.add(new int[]{nr, nc});
     }
