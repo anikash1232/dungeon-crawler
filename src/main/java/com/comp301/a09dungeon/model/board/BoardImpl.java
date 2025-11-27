@@ -55,7 +55,7 @@ public class BoardImpl implements Board {
     }
 
     for (int i = 0; i < treasures; i++) {
-      randomlyPlace(new Treasure("Treasure", "treasure.png"));
+      randomlyPlace(new Treasure());
     }
 
     for (int i = 0; i < walls; i++) {
@@ -114,6 +114,8 @@ public class BoardImpl implements Board {
 
   @Override
   public CollisionResult moveHero(int drow, int dcol) {
+
+
     int r = heroPosn.getRow();
     int c = heroPosn.getCol();
     int nr = r + drow;

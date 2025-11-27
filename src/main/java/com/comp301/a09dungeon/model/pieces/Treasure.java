@@ -4,8 +4,8 @@ public class Treasure extends APiece {
 
   private final int value;
 
-  public Treasure(String name, String resourcePath) {
-    super(name, resourcePath);
+  public Treasure() {
+    super("Treasure", "treasure.png");
     this.value = 50;
   }
 
