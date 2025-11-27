@@ -23,6 +23,9 @@ public class Enemy extends APiece implements MovablePiece {
     if (other instanceof Wall) {
       throw new IllegalArgumentException();
     }
+    if (other instanceof Enemy) {
+      return new CollisionResult(0, CollisionResult.Result.CONTINUE);
+    }
     throw new IllegalArgumentException();
   }
 }
