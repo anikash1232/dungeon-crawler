@@ -53,11 +53,9 @@ public class BoardImpl implements Board {
     for (int i = 0; i < enemies; i++) {
       randomlyPlace(new Enemy());
     }
-
     for (int i = 0; i < treasures; i++) {
       randomlyPlace(new Treasure());
     }
-
     for (int i = 0; i < walls; i++) {
       randomlyPlace(new Wall());
     }
@@ -128,12 +126,12 @@ public class BoardImpl implements Board {
       return new CollisionResult(0, CollisionResult.Result.CONTINUE);
     }
 
-    if (target instanceof Treasure) {
-      board[nr][nc] = null;
-    }
-
     Hero hero = (Hero) board[r][c];
     CollisionResult heroCR = hero.collide(target);
+
+    if (target instanceof Treasure || target instanceof Enemy || target instanceof Exit) {
+      board[nr][nc] = null;
+    }
 
     if (heroCR.getResults() == CollisionResult.Result.GAME_OVER) {
       return heroCR;
@@ -178,7 +176,7 @@ public class BoardImpl implements Board {
   private CollisionResult moveEnemy(Enemy e) {
     int r = e.getPosn().getRow();
     int c = e.getPosn().getCol();
-    int[][] dirs = { {1,0}, {-1,0}, {0,1}, {0,-1} };
+    int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1}};
     List<int[]> options = new ArrayList<>();
 
     for (int[] d : dirs) {
@@ -187,6 +185,7 @@ public class BoardImpl implements Board {
       if (!inBounds(nr, nc)) continue;
       Piece t = board[nr][nc];
       if (t instanceof Wall) continue;
+      if (t instanceof Exit) continue;
       if (t instanceof Enemy) continue;
       options.add(new int[]{nr, nc});
     }
@@ -195,14 +194,13 @@ public class BoardImpl implements Board {
       return new CollisionResult(0, CollisionResult.Result.CONTINUE);
     }
 
-    int[] choice = options.get(rand.nextInt(options.size()));
-    int nr = choice[0];
-    int nc = choice[1];
+    int[] move = options.get(rand.nextInt(options.size()));
+    int nr = move[0];
+    int nc = move[1];
     Piece target = board[nr][nc];
 
-    CollisionResult cr = e.collide(target);
-    if (cr.getResults() == CollisionResult.Result.GAME_OVER) {
-      return cr;
+    if (target instanceof Hero) {
+      return new CollisionResult(0, CollisionResult.Result.GAME_OVER);
     }
 
     if (target instanceof Treasure) {
