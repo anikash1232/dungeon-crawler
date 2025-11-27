@@ -10,22 +10,12 @@ public class Enemy extends APiece implements MovablePiece {
   public CollisionResult collide(Piece other) {
     if (other == null) {
       return new CollisionResult(0, CollisionResult.Result.CONTINUE);
-    }
-    if (other instanceof Treasure) {
+    } else if (other instanceof Treasure) {
       return new CollisionResult(0, CollisionResult.Result.CONTINUE);
-    }
-    if (other instanceof Hero) {
+    } else if (other instanceof Hero) {
       return new CollisionResult(0, CollisionResult.Result.GAME_OVER);
-    }
-    if (other instanceof Exit) {
-      return new CollisionResult(0, CollisionResult.Result.CONTINUE);
-    }
-    if (other instanceof Wall) {
+    } else {
       throw new IllegalArgumentException();
     }
-    if (other instanceof Enemy) {
-      return new CollisionResult(0, CollisionResult.Result.CONTINUE);
-    }
-    throw new IllegalArgumentException();
   }
 }

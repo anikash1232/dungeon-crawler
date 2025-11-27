@@ -1,37 +1,29 @@
 package com.comp301.a09dungeon.model.board;
 
+import static com.comp301.a09dungeon.model.pieces.CollisionResult.Result.CONTINUE;
+
 import com.comp301.a09dungeon.model.pieces.*;
+import com.comp301.a09dungeon.model.pieces.CollisionResult.Result;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 public class BoardImpl implements Board {
-
+  private final Random rand = new Random();
   private final int width;
   private final int height;
   private final Piece[][] board;
-  private final Random rand = new Random();
-  private Posn heroPosn;
 
   public BoardImpl(int width, int height) {
     this.width = width;
     this.height = height;
     this.board = new Piece[height][width];
-    this.heroPosn = null;
   }
 
-  public BoardImpl(Piece[][] initialBoard) {
-    this.height = initialBoard.length;
-    this.width = initialBoard[0].length;
-    this.board = initialBoard;
-    this.heroPosn = null;
-    for (int r = 0; r < height; r++) {
-      for (int c = 0; c < width; c++) {
-        if (board[r][c] instanceof Hero) {
-          heroPosn = new Posn(r, c);
-        }
-      }
-    }
+  public BoardImpl(Piece[][] pieces) {
+    this.height = pieces.length;
+    this.width = pieces[0].length;
+    this.board = pieces;
   }
 
   @Override
@@ -42,9 +34,9 @@ public class BoardImpl implements Board {
       }
     }
 
-    int needed = enemies + treasures + walls + 2;
-    if (needed > width * height) {
-      throw new IllegalArgumentException();
+    int total = enemies + treasures + walls + 2; // hero + exit
+    if (total > width * height) {
+      throw new IllegalArgumentException("Too many pieces");
     }
 
     randomlyPlace(new Hero());
@@ -66,15 +58,22 @@ public class BoardImpl implements Board {
       int r = rand.nextInt(height);
       int c = rand.nextInt(width);
       if (board[r][c] == null) {
-        Posn pos = new Posn(r, c);
         board[r][c] = p;
-        p.setPosn(pos);
-        if (p instanceof Hero) {
-          heroPosn = pos;
-        }
+        p.setPosn(new Posn(r, c));
         return;
       }
     }
+  }
+
+  private Hero findHero() {
+    for (int r = 0; r < height; r++) {
+      for (int c = 0; c < width; c++) {
+        if (board[r][c] instanceof Hero) {
+          return (Hero) board[r][c];
+        }
+      }
+    }
+    throw new IllegalStateException("Hero not found");
   }
 
   @Override
@@ -88,77 +87,111 @@ public class BoardImpl implements Board {
   }
 
   @Override
-  public Piece get(Posn posn) {
-    int r = posn.getRow();
-    int c = posn.getCol();
-    if (r < 0 || r >= height || c < 0 || c >= width) {
-      return null;
-    }
-    return board[r][c];
+  public Piece get(Posn pos) {
+    return board[pos.getRow()][pos.getCol()];
   }
 
   @Override
   public void set(Piece p, Posn newPos) {
-    int r = newPos.getRow();
-    int c = newPos.getCol();
-    board[r][c] = p;
-    if (p != null) {
-      p.setPosn(newPos);
-      if (p instanceof Hero) {
-        heroPosn = newPos;
-      }
-    }
+    board[newPos.getRow()][newPos.getCol()] = p;
   }
 
   @Override
   public CollisionResult moveHero(int drow, int dcol) {
-    int r = heroPosn.getRow();
-    int c = heroPosn.getCol();
-    int nr = r + drow;
-    int nc = c + dcol;
+    Hero hero = findHero();
+    Posn pos = hero.getPosn();
 
-    // bounds or wall = no move
-    if (!inBounds(nr, nc) || board[nr][nc] instanceof Wall) {
-      return new CollisionResult(0, CollisionResult.Result.CONTINUE);
+    int nr = pos.getRow() + drow;
+    int nc = pos.getCol() + dcol;
+
+    if (!isBounds(nr, nc) || board[nr][nc] instanceof Wall) {
+      return new CollisionResult(0, CONTINUE);
     }
+
+    int points = 0;
+    Result heroResult = CONTINUE;
 
     Piece target = board[nr][nc];
 
-    Hero hero = (Hero) board[r][c];
-    CollisionResult heroCR = hero.collide(target);
+    if (target != null) {
+      CollisionResult cr = hero.collide(target);
+      points += cr.getPoints();
+      heroResult = cr.getResults();
 
-    // only remove AFTER collision logic
-    if (target instanceof Treasure || target instanceof Enemy) {
-      board[nr][nc] = null;
-    }
-
-    if (heroCR.getResults() == CollisionResult.Result.GAME_OVER) {
-      return heroCR;
-    }
-
-    // move hero to new location
-    board[r][c] = null;
-    board[nr][nc] = hero;
-    hero.setPosn(new Posn(nr, nc));
-    heroPosn = new Posn(nr, nc);
-
-    if (heroCR.getResults() == CollisionResult.Result.NEXT_LEVEL) {
-      return heroCR;
-    }
-
-    // move enemies AFTER hero moves
-    List<Enemy> enemies = getEnemies();
-    for (Enemy e : enemies) {
-      CollisionResult er = moveEnemy(e);
-      if (er.getResults() == CollisionResult.Result.GAME_OVER) {
-        return er;
+      if (target instanceof Treasure || target instanceof Enemy || target instanceof Exit) {
+        board[nr][nc] = null;
       }
     }
 
-    return heroCR;
+    movePiece(hero, nr, nc);
+
+    if (heroResult == Result.NEXT_LEVEL) {
+      return new CollisionResult(points, Result.NEXT_LEVEL);
+    }
+
+    if (heroResult == Result.GAME_OVER) {
+      return new CollisionResult(points, Result.GAME_OVER);
+    }
+
+    if (moveAllEnemies() == Result.GAME_OVER) {
+      return new CollisionResult(points, Result.GAME_OVER);
+    }
+
+    return new CollisionResult(points, CONTINUE);
   }
 
-  private List<Enemy> getEnemies() {
+  private Result moveAllEnemies() {
+    for (Enemy e : allEnemies()) {
+      Result r = moveEnemyOnce(e);
+      if (r == Result.GAME_OVER) {
+        return Result.GAME_OVER;
+      }
+    }
+    return CONTINUE;
+  }
+
+  private Result moveEnemyOnce(Enemy e) {
+    int r = e.getPosn().getRow();
+    int c = e.getPosn().getCol();
+
+    int[] dr = {1, -1, 0, 0};
+    int[] dc = {0, 0, 1, -1};
+    List<int[]> options = new ArrayList<>();
+
+    for (int i = 0; i < 4; i++) {
+      int nr = r + dr[i];
+      int nc = c + dc[i];
+
+      if (!isBounds(nr, nc)) continue;
+      Piece p = board[nr][nc];
+
+      if (p instanceof Wall) continue;
+      if (p instanceof Exit) continue;
+      if (p instanceof Enemy) continue;
+
+      options.add(new int[]{nr, nc});
+    }
+
+    if (options.isEmpty()) return CONTINUE;
+
+    int[] move = options.get(rand.nextInt(options.size()));
+    int nr = move[0];
+    int nc = move[1];
+
+    Piece target = board[nr][nc];
+
+    if (target instanceof Hero) {
+      return Result.GAME_OVER;
+    }
+    if (target instanceof Treasure) {
+      board[nr][nc] = null;
+    }
+
+    movePiece(e, nr, nc);
+    return CONTINUE;
+  }
+
+  private List<Enemy> allEnemies() {
     List<Enemy> list = new ArrayList<>();
     for (int r = 0; r < height; r++) {
       for (int c = 0; c < width; c++) {
@@ -170,48 +203,14 @@ public class BoardImpl implements Board {
     return list;
   }
 
-  private CollisionResult moveEnemy(Enemy e) {
-    int r = e.getPosn().getRow();
-    int c = e.getPosn().getCol();
-    int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1}};
-    List<int[]> options = new ArrayList<>();
-
-    for (int[] d : dirs) {
-      int nr = r + d[0];
-      int nc = c + d[1];
-      if (!inBounds(nr, nc)) continue;
-      Piece t = board[nr][nc];
-      if (t instanceof Wall) continue;
-      if (t instanceof Exit) continue;
-      if (t instanceof Enemy) continue;
-      options.add(new int[]{nr, nc});
-    }
-
-    if (options.isEmpty()) {
-      return new CollisionResult(0, CollisionResult.Result.CONTINUE);
-    }
-
-    int[] move = options.get(rand.nextInt(options.size()));
-    int nr = move[0];
-    int nc = move[1];
-    Piece target = board[nr][nc];
-
-    if (target instanceof Hero) {
-      return new CollisionResult(0, CollisionResult.Result.GAME_OVER);
-    }
-
-    if (target instanceof Treasure) {
-      board[nr][nc] = null;
-    }
-
-    board[r][c] = null;
-    board[nr][nc] = e;
-    e.setPosn(new Posn(nr, nc));
-
-    return new CollisionResult(0, CollisionResult.Result.CONTINUE);
+  private void movePiece(Piece p, int nr, int nc) {
+    Posn old = p.getPosn();
+    board[old.getRow()][old.getCol()] = null;
+    board[nr][nc] = p;
+    p.setPosn(new Posn(nr, nc));
   }
 
-  private boolean inBounds(int r, int c) {
+  private boolean isBounds(int r, int c) {
     return r >= 0 && r < height && c >= 0 && c < width;
   }
 }
