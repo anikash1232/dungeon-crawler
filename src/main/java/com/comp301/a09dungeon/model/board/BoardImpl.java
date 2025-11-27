@@ -117,19 +117,18 @@ public class BoardImpl implements Board {
     int nr = r + drow;
     int nc = c + dcol;
 
+    // bounds or wall = no move
     if (!inBounds(nr, nc) || board[nr][nc] instanceof Wall) {
       return new CollisionResult(0, CollisionResult.Result.CONTINUE);
     }
 
     Piece target = board[nr][nc];
-    if (!(target == null || target instanceof Treasure || target instanceof Exit || target instanceof Enemy)) {
-      return new CollisionResult(0, CollisionResult.Result.CONTINUE);
-    }
 
     Hero hero = (Hero) board[r][c];
     CollisionResult heroCR = hero.collide(target);
 
-    if (target instanceof Treasure || target instanceof Enemy || target instanceof Exit) {
+    // only remove AFTER collision logic
+    if (target instanceof Treasure || target instanceof Enemy) {
       board[nr][nc] = null;
     }
 
@@ -137,19 +136,17 @@ public class BoardImpl implements Board {
       return heroCR;
     }
 
-    if (heroCR.getResults() == CollisionResult.Result.NEXT_LEVEL) {
-      board[r][c] = null;
-      board[nr][nc] = hero;
-      hero.setPosn(new Posn(nr, nc));
-      heroPosn = new Posn(nr, nc);
-      return heroCR;
-    }
-
+    // move hero to new location
     board[r][c] = null;
     board[nr][nc] = hero;
     hero.setPosn(new Posn(nr, nc));
     heroPosn = new Posn(nr, nc);
 
+    if (heroCR.getResults() == CollisionResult.Result.NEXT_LEVEL) {
+      return heroCR;
+    }
+
+    // move enemies AFTER hero moves
     List<Enemy> enemies = getEnemies();
     for (Enemy e : enemies) {
       CollisionResult er = moveEnemy(e);
