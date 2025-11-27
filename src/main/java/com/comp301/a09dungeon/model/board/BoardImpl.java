@@ -128,12 +128,12 @@ public class BoardImpl implements Board {
       return new CollisionResult(0, CollisionResult.Result.CONTINUE);
     }
 
-    Hero hero = (Hero) board[r][c];
-    CollisionResult heroCR = hero.collide(target);
-
     if (target instanceof Treasure) {
       board[nr][nc] = null;
     }
+
+    Hero hero = (Hero) board[r][c];
+    CollisionResult heroCR = hero.collide(target);
 
     if (heroCR.getResults() == CollisionResult.Result.GAME_OVER) {
       return heroCR;
@@ -200,8 +200,9 @@ public class BoardImpl implements Board {
     int nc = choice[1];
     Piece target = board[nr][nc];
 
-    if (target instanceof Hero) {
-      return new CollisionResult(0, CollisionResult.Result.GAME_OVER);
+    CollisionResult cr = e.collide(target);
+    if (cr.getResults() == CollisionResult.Result.GAME_OVER) {
+      return cr;
     }
 
     if (target instanceof Treasure) {
