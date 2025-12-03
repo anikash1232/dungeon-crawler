@@ -1,21 +1,25 @@
 package com.comp301.a09dungeon.view;
 
+import com.comp301.a09dungeon.model.Model;
 import com.comp301.a09dungeon.model.Observer;
+import com.comp301.a09dungeon.controller.Controller;
 import javafx.scene.Parent;
-import javafx.scene.control.Label;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
 
-public class View implements FXComponent, Observer {
+public abstract class View implements FXComponent, Observer {
 
-  public View() {}
+  protected final Model model;
+  protected final Controller controller;
+  protected final AppLauncher launcher;
 
-  public Parent render() {
-    Pane s = new StackPane();
-    s.getChildren().add(new Label("Hello, World"));
-    return s;
+  public View(Model model, Controller controller, AppLauncher launcher) {
+    this.model = model;
+    this.controller = controller;
+    this.launcher = launcher;
   }
 
   @Override
-  public void update() {}
+  public abstract Parent render();
+
+  @Override
+  public abstract void update();
 }
