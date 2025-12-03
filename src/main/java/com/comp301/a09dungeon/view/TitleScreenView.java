@@ -2,11 +2,15 @@ package com.comp301.a09dungeon.view;
 
 import com.comp301.a09dungeon.model.Model;
 import com.comp301.a09dungeon.controller.Controller;
+
+import javafx.animation.PauseTransition;
+import javafx.animation.TranslateTransition;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 public class TitleScreenView extends View {
 
@@ -29,8 +33,10 @@ public class TitleScreenView extends View {
         Button startBtn = new Button("Start Game");
         startBtn.getStyleClass().add("button");
 
-        // only start the game; view switching happens in update()
-        startBtn.setOnAction(e -> controller.startGame());
+        startBtn.setOnAction(e -> {
+            controller.startGame();
+            launcher.setView(new GameView(model, controller, launcher));
+        });
 
         Label byName = new Label("By Anirudh Kashyap");
         byName.getStyleClass().add("label");
@@ -44,10 +50,27 @@ public class TitleScreenView extends View {
 
     @Override
     public void update() {
+        // Called whenever the model changes.
+        // Only react when the game has ended.
         if (model.getStatus() == Model.STATUS.END_GAME) {
-            launcher.setView(this);
-        } else if (model.getStatus() == Model.STATUS.IN_PROGRESS) {
-            launcher.setView(launcher.getGameView());
+
+            // Current root is the GameView when the collision happens
+            Parent currentRoot = launcher.getScene().getRoot();
+
+            if (currentRoot != null) {
+                // Shake the whole board
+                TranslateTransition shake = new TranslateTransition(Duration.millis(80), currentRoot);
+                shake.setFromX(-10);
+                shake.setToX(10);
+                shake.setAutoReverse(true);
+                shake.setCycleCount(4);
+                shake.play();
+            }
+
+            // After a short delay, switch to the title screen
+            PauseTransition delay = new PauseTransition(Duration.millis(250));
+            delay.setOnFinished(e -> launcher.setView(this));
+            delay.play();
         }
     }
 }

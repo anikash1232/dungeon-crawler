@@ -30,7 +30,7 @@ public class GameView extends View {
     private int timeElapsed = 0;
 
     private Label[][] tileGrid;
-    private BorderPane rootPane; // for whole-board shake
+    private BorderPane rootPane; // used for whole-board shake
 
     public GameView(Model model, Controller controller, AppLauncher launcher) {
         super(model, controller, launcher);
@@ -40,7 +40,7 @@ public class GameView extends View {
     public Parent render() {
 
         BorderPane root = new BorderPane();
-        rootPane = root; // save reference for board shake
+        rootPane = root; // save reference so we can shake the whole board
         root.setPadding(new Insets(20));
         root.setFocusTraversable(true);
         root.requestFocus();
@@ -153,9 +153,13 @@ public class GameView extends View {
 
     /**
      * Core move handler:
-     *  - figures out target tile BEFORE move
-     *  - for enemy: shake whole board, THEN move after delay
-     *  - else: move immediately, then apply fade / treasure effects.
+     *  - looks at target tile BEFORE move
+     *  - moves immediately
+     *  - fade on hero move
+     *  - pop + flash on treasure
+     *
+     *  Enemy shake is now handled in update() when END_GAME happens,
+     *  so we don't special-case enemy here.
      */
     private void handleMove(int dRow, int dCol, Runnable moveAction) {
         Posn before = findHeroPos();
@@ -175,51 +179,34 @@ public class GameView extends View {
             targetPiece = model.get(new Posn(targetRow, targetCol));
         }
 
-        // SPECIAL CASE: enemy collision → shake first, then move (GAME_OVER) after a short delay
-        if (inBounds && targetPiece instanceof Enemy) {
-            playBoardShake();
-
-            PauseTransition delay = new PauseTransition(Duration.millis(250));
-            delay.setOnFinished(ev -> {
-                // now actually move in the model (this will likely trigger GAME_OVER)
-                moveAction.run();
-
-                // sync emojis one last time (may or may not be visible depending on game over)
-                refreshBoardEmojis();
-            });
-            delay.play();
-
-            return; // don't run the normal movement logic below
-        }
-
-        // NORMAL CASE: empty / treasure / exit / etc.
+        // move in the model (hero move + enemy moves + collision logic)
         moveAction.run();
 
         Posn after = findHeroPos();
         if (after == null) return;
 
-        // Update emoji text for all tiles to stay in sync with model
+        // keep board text in sync with model
         refreshBoardEmojis();
 
-        // QUICK FADE when hero successfully moves (KEEP AS-IS)
+        // QUICK FADE when hero successfully moves (keep as-is)
         if (!before.equals(after)) {
             Label heroTile = tileGrid[after.getRow()][after.getCol()];
             playFade(heroTile);
         }
 
-        // If the target tile originally had treasure -> POP + GOLD FLASH + disappear (KEEP AS-IS)
+        // TREASURE EFFECT (keep as-is)
         if (inBounds && targetPiece instanceof Treasure) {
             Label treasureTile = tileGrid[targetRow][targetCol];
 
-            // Pop (grow/shrink)
+            // pop
             playPop(treasureTile);
 
-            // Flash gold slightly after pop starts
+            // flash gold slightly after pop starts
             PauseTransition delay = new PauseTransition(Duration.millis(120));
             delay.setOnFinished(ev -> playGoldenFlash(treasureTile));
             delay.play();
 
-            // Clear emoji after animation to visually disappear
+            // clear emoji after animation
             PauseTransition removeDelay = new PauseTransition(Duration.millis(350));
             removeDelay.setOnFinished(ev -> treasureTile.setText(""));
             removeDelay.play();
@@ -252,7 +239,7 @@ public class GameView extends View {
         return null;
     }
 
-    // ANIMATION: fade on hero move (UNCHANGED)
+    // ANIMATION: fade on hero move (unchanged)
     private void playFade(Label tile) {
         FadeTransition ft = new FadeTransition(Duration.millis(200), tile);
         ft.setFromValue(0.3);
@@ -260,7 +247,7 @@ public class GameView extends View {
         ft.play();
     }
 
-    // ANIMATION: treasure pop (scale up / down) (UNCHANGED)
+    // ANIMATION: treasure pop (unchanged)
     private void playPop(Label tile) {
         ScaleTransition st = new ScaleTransition(Duration.millis(200), tile);
         st.setFromX(1.0);
@@ -272,7 +259,7 @@ public class GameView extends View {
         st.play();
     }
 
-    // ANIMATION: golden flash (UNCHANGED)
+    // ANIMATION: golden flash (unchanged)
     private void playGoldenFlash(Label tile) {
         tile.setStyle("-fx-background-color: gold; -fx-background-radius: 6;");
 
@@ -286,7 +273,7 @@ public class GameView extends View {
         ft.play();
     }
 
-    // ANIMATION: shake WHOLE BOARD on enemy collision (UPDATED)
+    // ANIMATION: shake WHOLE BOARD (used on END_GAME)
     private void playBoardShake() {
         if (rootPane == null) return;
 
@@ -318,10 +305,17 @@ public class GameView extends View {
     @Override
     public void update() {
         if (model.getStatus() == Model.STATUS.IN_PROGRESS) {
+            // normal board repaint when things change
             launcher.setView(this);
         } else if (model.getStatus() == Model.STATUS.END_GAME) {
+            // enemy collision (or any game over) → shake + then go to title
             if (timer != null) timer.stop();
-            launcher.setView(launcher.getTitleView());
+
+            playBoardShake();
+
+            PauseTransition delay = new PauseTransition(Duration.millis(250));
+            delay.setOnFinished(e -> launcher.setView(launcher.getTitleView()));
+            delay.play();
         }
     }
 }
