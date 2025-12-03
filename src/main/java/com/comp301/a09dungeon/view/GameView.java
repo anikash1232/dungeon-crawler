@@ -143,7 +143,7 @@ public class GameView extends View {
 
     // Map model piece -> emoji
     private String getEmoji(Piece p) {
-        if (p instanceof Hero) return "🧙‍♂️";
+        if (p instanceof Hero) return "🧙";
         if (p instanceof Enemy) return "👾";
         if (p instanceof Treasure) return "💎";
         if (p instanceof Exit) return "🚪";
