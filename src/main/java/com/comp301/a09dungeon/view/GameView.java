@@ -9,11 +9,16 @@ import javafx.animation.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.util.Duration;
+
+import java.net.URL;
 
 public class GameView extends View {
 
@@ -42,9 +47,7 @@ public class GameView extends View {
         root.setFocusTraversable(true);
         root.requestFocus();
 
-        // ─────────────────────────────────────────────
-        // TOP BAR: Score | Time | Shields
-        // ─────────────────────────────────────────────
+        // ───────── TOP BAR: Score | Time | Shields ─────────
 
         scoreLabel = new Label();
         scoreLabel.getStyleClass().add("label");
@@ -59,17 +62,14 @@ public class GameView extends View {
         timerLabel.setStyle("-fx-font-size: 22px;");
         shieldLabel.setStyle("-fx-font-size: 22px;");
 
-
         HBox topBar = new HBox(40, scoreLabel, timerLabel, shieldLabel);
         topBar.setAlignment(Pos.CENTER);
         topBar.setPadding(new Insets(10, 0, 20, 0));
         root.setTop(topBar);
 
-        updateTopBarLabels();  // first fill of labels
+        updateTopBarLabels();
 
-        // ─────────────────────────────────────────────
-        // BOARD GRID
-        // ─────────────────────────────────────────────
+        // ───────── BOARD GRID ─────────
 
         GridPane grid = new GridPane();
         tileGrid = new Label[model.getHeight()][model.getWidth()];
@@ -82,16 +82,21 @@ public class GameView extends View {
                 tile.getStyleClass().add("tile");
                 tile.setMouseTransparent(true);
 
-                // ⭐ MAKE BOARD BIGGER ⭐
                 tile.setPrefSize(60, 60);
                 tile.setMinSize(60, 60);
                 tile.setMaxSize(60, 60);
-
                 tile.setAlignment(Pos.CENTER);
-
                 tile.setStyle("-fx-font-size: 32px;");
 
-                tile.setText(getEmoji(model.get(new Posn(r , c))));
+                Piece piece = model.get(new Posn(r, c));
+                Node graphic = getGraphic(piece);
+
+                if (graphic != null) {
+                    tile.setGraphic(graphic);
+                    tile.setText("");
+                } else {
+                    tile.setText(getEmoji(piece));
+                }
 
                 tileGrid[r][c] = tile;
                 grid.add(tile, c, r);
@@ -102,9 +107,7 @@ public class GameView extends View {
         gridHolder.setAlignment(Pos.CENTER);
         root.setCenter(gridHolder);
 
-        // ─────────────────────────────────────────────
-        // MOVEMENT BUTTONS
-        // ─────────────────────────────────────────────
+        // ───────── MOVEMENT BUTTONS (keyboard layout) ─────────
 
         Button up = new Button("↑");
         Button down = new Button("↓");
@@ -116,7 +119,6 @@ public class GameView extends View {
         left.setOnAction(e -> handleMove(0, -1, () -> controller.moveLeft()));
         right.setOnAction(e -> handleMove(0, 1, () -> controller.moveRight()));
 
-        // NEW keyboard-style layout
         HBox topRow = new HBox(up);
         topRow.setAlignment(Pos.CENTER);
 
@@ -129,34 +131,42 @@ public class GameView extends View {
 
         root.setRight(controls);
 
-
-        // ─────────────────────────────────────────────
-        // KEYBOARD INPUT
-        // ─────────────────────────────────────────────
+        // ───────── KEYBOARD INPUT ─────────
 
         root.setOnKeyPressed(e -> {
-            switch (e.getCode()) {
-                case W: case UP:    handleMove(-1, 0, () -> controller.moveUp()); break;
-                case S: case DOWN:  handleMove(1, 0, () -> controller.moveDown()); break;
-                case A: case LEFT:  handleMove(0, -1, () -> controller.moveLeft()); break;
-                case D: case RIGHT: handleMove(0, 1, () -> controller.moveRight()); break;
+            KeyCode code = e.getCode();
+            switch (code) {
+                case W:
+                case UP:
+                    handleMove(-1, 0, () -> controller.moveUp());
+                    break;
+                case S:
+                case DOWN:
+                    handleMove(1, 0, () -> controller.moveDown());
+                    break;
+                case A:
+                case LEFT:
+                    handleMove(0, -1, () -> controller.moveLeft());
+                    break;
+                case D:
+                case RIGHT:
+                    handleMove(0, 1, () -> controller.moveRight());
+                    break;
             }
         });
 
-        // ─────────────────────────────────────────────
-        // BOTTOM MECHANIC LABEL
-        // ─────────────────────────────────────────────
+        // ───────── BOTTOM MECHANIC LABEL ─────────
 
-        Label mechanicLabel = new Label("🛡 Shield: Picking one up lets you survive one enemy hit! NOTE: Shields don't carry over to the next level!");
+        Label mechanicLabel =
+                new Label(
+                        "Shield: Picking one up lets you survive one enemy hit! NOTE: Shields don't carry over to the next level!");
         mechanicLabel.getStyleClass().add("label");
 
         VBox bottomInfo = new VBox(10, mechanicLabel);
         bottomInfo.setAlignment(Pos.CENTER);
         root.setBottom(bottomInfo);
 
-        // ─────────────────────────────────────────────
-        // START TIMER ONLY ONCE
-        // ─────────────────────────────────────────────
+        // ───────── START TIMER ONLY ONCE ─────────
 
         if (timer == null) {
             startTimer();
@@ -165,8 +175,39 @@ public class GameView extends View {
         return root;
     }
 
+    // ─────────────────────────────────────
+    // GRAPHICS: sprites (Shield) + emojis
+    // ─────────────────────────────────────
 
-    // EMOJI MAP
+    // Sprite support for specific pieces (currently only Shield)
+    private Node getGraphic(Piece p) {
+        String path = null;
+
+        if (p instanceof Hero) path = "/Hero.png";
+        else if (p instanceof Enemy) path = "/Enemy.png";
+        else if (p instanceof Treasure) path = "/Treasure.png";
+        else if (p instanceof Exit) path = "/Exit.png";
+        else if (p instanceof Wall) path = "/Wall.png";
+        else if (p instanceof Shield) path = "/Shield.png";
+
+        if (path != null) {
+            URL url = getClass().getResource(path);
+            if (url != null) {
+                Image img = new Image(url.toExternalForm());
+                ImageView v = new ImageView(img);
+                v.setFitWidth(50);
+                v.setFitHeight(50);
+                v.setPreserveRatio(true);
+                return v;
+            }
+        }
+
+        // fallback if image is missing
+        return null;
+    }
+
+
+    // Emoji fallback for everything
     private String getEmoji(Piece p) {
         if (p instanceof Hero) return "🧙";
         if (p instanceof Enemy) return "👾";
@@ -177,7 +218,10 @@ public class GameView extends View {
         return "";
     }
 
-    // HANDLE MOVE
+    // ─────────────────────────────────────
+    // MOVE HANDLER
+    // ─────────────────────────────────────
+
     private void handleMove(int dRow, int dCol, Runnable moveAction) {
         Hero heroBefore = findHero();
         if (heroBefore == null) return;
@@ -186,10 +230,11 @@ public class GameView extends View {
         int targetRow = before.getRow() + dRow;
         int targetCol = before.getCol() + dCol;
 
-        boolean inBounds = targetRow >= 0 &&
-                targetRow < model.getHeight() &&
-                targetCol >= 0 &&
-                targetCol < model.getWidth();
+        boolean inBounds =
+                targetRow >= 0
+                        && targetRow < model.getHeight()
+                        && targetCol >= 0
+                        && targetCol < model.getWidth();
 
         Piece targetPiece = null;
         if (inBounds) {
@@ -224,24 +269,49 @@ public class GameView extends View {
         }
     }
 
+    // ─────────────────────────────────────
+    // TOP BAR LABELS
+    // ─────────────────────────────────────
+
     private void updateTopBarLabels() {
         scoreLabel.setText("Score: " + model.getCurScore());
 
         Hero hero = findHero();
         if (hero != null) {
             shieldLabel.setText("Shields: " + hero.getShields());
+        } else {
+            shieldLabel.setText("Shields: 0");
         }
     }
+
+    // ─────────────────────────────────────
+    // BOARD REFRESH
+    // ─────────────────────────────────────
 
     private void refreshBoardEmojis() {
         for (int r = 0; r < model.getHeight(); r++) {
             for (int c = 0; c < model.getWidth(); c++) {
-                tileGrid[r][c].setText(
-                        getEmoji(model.get(new Posn(r, c)))
-                );
+                Piece piece = model.get(new Posn(r, c));
+                Node graphic = getGraphic(piece);
+
+                Label tile = tileGrid[r][c];
+
+                if (graphic != null) {
+                    tile.setGraphic(graphic);
+                    tile.setText("");
+                } else {
+                    tile.setGraphic(null);
+                    tile.setText(getEmoji(piece));
+
+
+                }
             }
         }
     }
+
+    // ─────────────────────────────────────
+    // FIND HERO
+    // ─────────────────────────────────────
 
     private Hero findHero() {
         for (int r = 0; r < model.getHeight(); r++) {
@@ -252,6 +322,10 @@ public class GameView extends View {
         }
         return null;
     }
+
+    // ─────────────────────────────────────
+    // ANIMATIONS
+    // ─────────────────────────────────────
 
     private void playFade(Label tile) {
         FadeTransition ft = new FadeTransition(Duration.millis(200), tile);
@@ -293,18 +367,28 @@ public class GameView extends View {
         tt.play();
     }
 
+    // ─────────────────────────────────────
+    // TIMER
+    // ─────────────────────────────────────
+
     private void startTimer() {
-        timer = new Timeline(
-                new KeyFrame(Duration.seconds(1), e -> {
-                    timeElapsed++;
-                    int m = timeElapsed / 60;
-                    int s = timeElapsed % 60;
-                    timerLabel.setText(String.format("Time: %02d:%02d", m, s));
-                })
-        );
+        timer =
+                new Timeline(
+                        new KeyFrame(
+                                Duration.seconds(1),
+                                e -> {
+                                    timeElapsed++;
+                                    int m = timeElapsed / 60;
+                                    int s = timeElapsed % 60;
+                                    timerLabel.setText(String.format("Time: %02d:%02d", m, s));
+                                }));
         timer.setCycleCount(Animation.INDEFINITE);
         timer.play();
     }
+
+    // ─────────────────────────────────────
+    // OBSERVER UPDATE
+    // ─────────────────────────────────────
 
     @Override
     public void update() {
