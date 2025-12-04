@@ -5,23 +5,14 @@ import com.comp301.a09dungeon.controller.Controller;
 import com.comp301.a09dungeon.model.board.Posn;
 import com.comp301.a09dungeon.model.pieces.*;
 
-import javafx.animation.Animation;
-import javafx.animation.FadeTransition;
-import javafx.animation.KeyFrame;
-import javafx.animation.PauseTransition;
-import javafx.animation.ScaleTransition;
-import javafx.animation.Timeline;
-import javafx.animation.TranslateTransition;
+import javafx.animation.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.util.Duration;
 
 public class GameView extends View {
@@ -30,7 +21,13 @@ public class GameView extends View {
     private int timeElapsed = 0;
 
     private Label[][] tileGrid;
-    private BorderPane rootPane; // used for whole-board shake
+    private BorderPane rootPane;
+
+    private Label scoreLabel;
+    private Label timerLabel;
+    private Label shieldLabel;
+
+    private boolean firstRender = true;
 
     public GameView(Model model, Controller controller, AppLauncher launcher) {
         super(model, controller, launcher);
@@ -40,41 +37,47 @@ public class GameView extends View {
     public Parent render() {
 
         BorderPane root = new BorderPane();
-        rootPane = root; // save reference so we can shake the whole board
+        rootPane = root;
         root.setPadding(new Insets(20));
         root.setFocusTraversable(true);
         root.requestFocus();
 
-        // SCORE
-        Label score = new Label("Score: " + model.getCurScore());
-        score.getStyleClass().add("label");
+        // ─────────────────────────────────────────────
+        // TOP BAR: Score | Time | Shields
+        // ─────────────────────────────────────────────
 
-        // TIMER
-        Label timerLabel = new Label("Time: 00:00");
+        scoreLabel = new Label();
+        scoreLabel.getStyleClass().add("label");
+
+        timerLabel = new Label("Time: 00:00");
         timerLabel.getStyleClass().add("label");
 
-        HBox topBar = new HBox(40, score, timerLabel);
+        shieldLabel = new Label();
+        shieldLabel.getStyleClass().add("label");
+
+        HBox topBar = new HBox(40, scoreLabel, timerLabel, shieldLabel);
         topBar.setAlignment(Pos.CENTER);
         topBar.setPadding(new Insets(10, 0, 20, 0));
         root.setTop(topBar);
 
+        updateTopBarLabels();
+
+        // ─────────────────────────────────────────────
         // BOARD GRID
+        // ─────────────────────────────────────────────
+
         GridPane grid = new GridPane();
+        tileGrid = new Label[model.getHeight()][model.getWidth()];
         grid.getStyleClass().add("board-grid");
 
-        int h = model.getHeight();
-        int w = model.getWidth();
-        tileGrid = new Label[h][w];
+        for (int r = 0; r < model.getHeight(); r++) {
+            for (int c = 0; c < model.getWidth(); c++) {
 
-        for (int r = 0; r < h; r++) {
-            for (int c = 0; c < w; c++) {
                 Label tile = new Label();
                 tile.getStyleClass().add("tile");
-                tile.setFocusTraversable(false);
                 tile.setMouseTransparent(true);
 
-                Piece p = model.get(new Posn(r, c));
-                tile.setText(getEmoji(p));
+                tile.setText(getEmoji(model.get(new Posn(r, c))));
 
                 tileGrid[r][c] = tile;
                 grid.add(tile, c, r);
@@ -85,161 +88,176 @@ public class GameView extends View {
         gridHolder.setAlignment(Pos.CENTER);
         root.setCenter(gridHolder);
 
+        // ─────────────────────────────────────────────
         // MOVEMENT BUTTONS
+        // ─────────────────────────────────────────────
+
         Button up = new Button("↑");
         Button down = new Button("↓");
         Button left = new Button("←");
         Button right = new Button("→");
-
-        up.getStyleClass().add("button");
-        down.getStyleClass().add("button");
-        left.getStyleClass().add("button");
-        right.getStyleClass().add("button");
 
         up.setOnAction(e -> handleMove(-1, 0, () -> controller.moveUp()));
         down.setOnAction(e -> handleMove(1, 0, () -> controller.moveDown()));
         left.setOnAction(e -> handleMove(0, -1, () -> controller.moveLeft()));
         right.setOnAction(e -> handleMove(0, 1, () -> controller.moveRight()));
 
-        VBox vertical = new VBox(15, up, down);
-        vertical.setAlignment(Pos.CENTER);
+        // NEW keyboard-style layout
+        HBox topRow = new HBox(up);
+        topRow.setAlignment(Pos.CENTER);
 
-        HBox horizontal = new HBox(15, left, right);
-        horizontal.setAlignment(Pos.CENTER);
+        HBox bottomRow = new HBox(15, left, down, right);
+        bottomRow.setAlignment(Pos.CENTER);
 
-        VBox controls = new VBox(20, vertical, horizontal);
+        VBox controls = new VBox(15, topRow, bottomRow);
         controls.setAlignment(Pos.CENTER);
         controls.setPadding(new Insets(0, 20, 0, 20));
+
         root.setRight(controls);
 
-        // KEYBOARD CONTROLS
+
+        // ─────────────────────────────────────────────
+        // KEYBOARD INPUT
+        // ─────────────────────────────────────────────
+
         root.setOnKeyPressed(e -> {
-            KeyCode code = e.getCode();
-            switch (code) {
-                case W:
-                case UP:
-                    handleMove(-1, 0, () -> controller.moveUp());
-                    break;
-                case S:
-                case DOWN:
-                    handleMove(1, 0, () -> controller.moveDown());
-                    break;
-                case A:
-                case LEFT:
-                    handleMove(0, -1, () -> controller.moveLeft());
-                    break;
-                case D:
-                case RIGHT:
-                    handleMove(0, 1, () -> controller.moveRight());
-                    break;
+            switch (e.getCode()) {
+                case W: case UP:    handleMove(-1, 0, () -> controller.moveUp()); break;
+                case S: case DOWN:  handleMove(1, 0, () -> controller.moveDown()); break;
+                case A: case LEFT:  handleMove(0, -1, () -> controller.moveLeft()); break;
+                case D: case RIGHT: handleMove(0, 1, () -> controller.moveRight()); break;
             }
         });
 
-        // START TIMER
-        startTimer(timerLabel);
+        // ─────────────────────────────────────────────
+        // BOTTOM MECHANIC LABEL
+        // ─────────────────────────────────────────────
+
+        Label mechanicLabel = new Label("🛡 Shield: Picking one up lets you survive one enemy hit! (Note: Shields dont carry over to the next leve!)");
+        mechanicLabel.getStyleClass().add("label");
+
+        VBox bottomInfo = new VBox(10, mechanicLabel);
+        bottomInfo.setAlignment(Pos.CENTER);
+        root.setBottom(bottomInfo);
+
+        // ─────────────────────────────────────────────
+        // START TIMER ONLY ONCE
+        // ─────────────────────────────────────────────
+
+        if (timer == null) {
+            startTimer();
+        }
 
         return root;
     }
 
-    // Map model piece -> emoji
+    // -----------------------------------------------------
+    // EMOJI MAP
+    // -----------------------------------------------------
     private String getEmoji(Piece p) {
         if (p instanceof Hero) return "🧙";
         if (p instanceof Enemy) return "👾";
         if (p instanceof Treasure) return "💎";
         if (p instanceof Exit) return "🚪";
         if (p instanceof Wall) return "🧱";
+        if (p instanceof Shield) return "🛡";
         return "";
     }
 
-    /**
-     * Core move handler:
-     *  - looks at target tile BEFORE move
-     *  - moves immediately
-     *  - fade on hero move
-     *  - pop + flash on treasure
-     *
-     *  Enemy shake is now handled in update() when END_GAME happens,
-     *  so we don't special-case enemy here.
-     */
+    // -----------------------------------------------------
+    // HERO MOVE HANDLER
+    // -----------------------------------------------------
     private void handleMove(int dRow, int dCol, Runnable moveAction) {
-        Posn before = findHeroPos();
-        if (before == null) return;
+        Hero heroBefore = findHero();
+        if (heroBefore == null) return;
+        Posn before = heroBefore.getPosn();
 
         int targetRow = before.getRow() + dRow;
         int targetCol = before.getCol() + dCol;
 
-        Piece targetPiece = null;
-        boolean inBounds =
-                targetRow >= 0
-                        && targetRow < model.getHeight()
-                        && targetCol >= 0
-                        && targetCol < model.getWidth();
+        boolean inBounds = targetRow >= 0 &&
+                targetRow < model.getHeight() &&
+                targetCol >= 0 &&
+                targetCol < model.getWidth();
 
+        Piece targetPiece = null;
         if (inBounds) {
             targetPiece = model.get(new Posn(targetRow, targetCol));
         }
 
-        // move in the model (hero move + enemy moves + collision logic)
         moveAction.run();
 
-        Posn after = findHeroPos();
-        if (after == null) return;
-
-        // keep board text in sync with model
         refreshBoardEmojis();
+        updateTopBarLabels();
 
-        // QUICK FADE when hero successfully moves (keep as-is)
+        Hero heroAfter = findHero();
+        if (heroAfter == null) return;
+
+        Posn after = heroAfter.getPosn();
+
         if (!before.equals(after)) {
-            Label heroTile = tileGrid[after.getRow()][after.getCol()];
-            playFade(heroTile);
+            playFade(tileGrid[after.getRow()][after.getCol()]);
         }
 
-        // TREASURE EFFECT (keep as-is)
-        if (inBounds && targetPiece instanceof Treasure) {
+        // TREASURE ANIMATION — FIXED
+        if (targetPiece instanceof Treasure && inBounds) {
+
             Label treasureTile = tileGrid[targetRow][targetCol];
 
-            // pop
             playPop(treasureTile);
 
-            // flash gold slightly after pop starts
             PauseTransition delay = new PauseTransition(Duration.millis(120));
             delay.setOnFinished(ev -> playGoldenFlash(treasureTile));
             delay.play();
 
-            // clear emoji after animation
-            PauseTransition removeDelay = new PauseTransition(Duration.millis(350));
-            removeDelay.setOnFinished(ev -> treasureTile.setText(""));
-            removeDelay.play();
+            PauseTransition remove = new PauseTransition(Duration.millis(350));
+            remove.setOnFinished(ev -> treasureTile.setText(""));
+            remove.play();
         }
     }
 
-    // Re-sync emojis with the model after each move
+    // -----------------------------------------------------
+    // UPDATE LABELS (Score + Shields)
+    // -----------------------------------------------------
+    private void updateTopBarLabels() {
+        scoreLabel.setText("Score: " + model.getCurScore());
+
+        Hero hero = findHero();
+        if (hero != null) {
+            shieldLabel.setText("Shields: " + hero.getShields());
+        }
+    }
+
+    // -----------------------------------------------------
+    // REFRESH BOARD EMOJIS
+    // -----------------------------------------------------
     private void refreshBoardEmojis() {
-        int h = model.getHeight();
-        int w = model.getWidth();
-        for (int r = 0; r < h; r++) {
-            for (int c = 0; c < w; c++) {
-                Piece p = model.get(new Posn(r, c));
-                tileGrid[r][c].setText(getEmoji(p));
+        for (int r = 0; r < model.getHeight(); r++) {
+            for (int c = 0; c < model.getWidth(); c++) {
+                tileGrid[r][c].setText(
+                        getEmoji(model.get(new Posn(r, c)))
+                );
             }
         }
     }
 
-    // Find hero coordinates in the model
-    private Posn findHeroPos() {
-        int h = model.getHeight();
-        int w = model.getWidth();
-        for (int r = 0; r < h; r++) {
-            for (int c = 0; c < w; c++) {
-                if (model.get(new Posn(r, c)) instanceof Hero) {
-                    return new Posn(r, c);
-                }
+    // -----------------------------------------------------
+    // FIND HERO
+    // -----------------------------------------------------
+    private Hero findHero() {
+        for (int r = 0; r < model.getHeight(); r++) {
+            for (int c = 0; c < model.getWidth(); c++) {
+                Piece p = model.get(new Posn(r, c));
+                if (p instanceof Hero) return (Hero) p;
             }
         }
         return null;
     }
 
-    // ANIMATION: fade on hero move (unchanged)
+    // -----------------------------------------------------
+    // ANIMATIONS
+    // -----------------------------------------------------
+
     private void playFade(Label tile) {
         FadeTransition ft = new FadeTransition(Duration.millis(200), tile);
         ft.setFromValue(0.3);
@@ -247,7 +265,6 @@ public class GameView extends View {
         ft.play();
     }
 
-    // ANIMATION: treasure pop (unchanged)
     private void playPop(Label tile) {
         ScaleTransition st = new ScaleTransition(Duration.millis(200), tile);
         st.setFromX(1.0);
@@ -259,7 +276,6 @@ public class GameView extends View {
         st.play();
     }
 
-    // ANIMATION: golden flash (unchanged)
     private void playGoldenFlash(Label tile) {
         tile.setStyle("-fx-background-color: gold; -fx-background-radius: 6;");
 
@@ -273,10 +289,7 @@ public class GameView extends View {
         ft.play();
     }
 
-    // ANIMATION: shake WHOLE BOARD (used on END_GAME)
     private void playBoardShake() {
-        if (rootPane == null) return;
-
         TranslateTransition tt = new TranslateTransition(Duration.millis(80), rootPane);
         tt.setFromX(-10);
         tt.setToX(10);
@@ -285,11 +298,10 @@ public class GameView extends View {
         tt.play();
     }
 
+    // -----------------------------------------------------
     // TIMER
-    private void startTimer(Label timerLabel) {
-        if (timer != null) timer.stop();
-        timeElapsed = 0;
-
+    // -----------------------------------------------------
+    private void startTimer() {
         timer = new Timeline(
                 new KeyFrame(Duration.seconds(1), e -> {
                     timeElapsed++;
@@ -302,16 +314,29 @@ public class GameView extends View {
         timer.play();
     }
 
+    // -----------------------------------------------------
+    // UPDATE (VIEW REFRESH)
+    // -----------------------------------------------------
     @Override
     public void update() {
-        if (model.getStatus() == Model.STATUS.IN_PROGRESS) {
-            // normal board repaint when things change
-            launcher.setView(this);
-        } else if (model.getStatus() == Model.STATUS.END_GAME) {
-            // enemy collision (or any game over) → shake + then go to title
-            if (timer != null) timer.stop();
 
+        if (model.getStatus() == Model.STATUS.IN_PROGRESS) {
+
+            if (firstRender) {
+                launcher.setView(this);
+                firstRender = false;
+            } else {
+                refreshBoardEmojis();
+                updateTopBarLabels();
+            }
+
+        } else if (model.getStatus() == Model.STATUS.END_GAME) {
+
+            if (timer != null) timer.stop();
             playBoardShake();
+
+            firstRender = true;
+            timer = null;
 
             PauseTransition delay = new PauseTransition(Duration.millis(250));
             delay.setOnFinished(e -> launcher.setView(launcher.getTitleView()));

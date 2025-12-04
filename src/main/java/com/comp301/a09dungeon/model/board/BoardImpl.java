@@ -34,20 +34,27 @@ public class BoardImpl implements Board {
       }
     }
 
-    int total = enemies + treasures + walls + 2; // hero + exit
+    int total = enemies + treasures + walls + 3; // hero + exit + shield
     if (total > width * height) {
       throw new IllegalArgumentException("Too many pieces");
     }
 
+    // place hero, exit, shield
     randomlyPlace(new Hero());
     randomlyPlace(new Exit());
+    randomlyPlace(new Shield());
 
+    // enemies
     for (int i = 0; i < enemies; i++) {
       randomlyPlace(new Enemy());
     }
+
+    // treasure
     for (int i = 0; i < treasures; i++) {
       randomlyPlace(new Treasure());
     }
+
+    // walls
     for (int i = 0; i < walls; i++) {
       randomlyPlace(new Wall());
     }
@@ -104,6 +111,7 @@ public class BoardImpl implements Board {
     int nr = pos.getRow() + drow;
     int nc = pos.getCol() + dcol;
 
+    // out of bounds or wall
     if (!isBounds(nr, nc) || board[nr][nc] instanceof Wall) {
       return new CollisionResult(0, CONTINUE);
     }
@@ -118,21 +126,28 @@ public class BoardImpl implements Board {
       points += cr.getPoints();
       heroResult = cr.getResults();
 
-      if (target instanceof Treasure || target instanceof Enemy || target instanceof Exit) {
+      // remove piece if consumable
+      if (target instanceof Treasure ||
+              target instanceof Enemy ||
+              target instanceof Exit ||
+              target instanceof Shield) {
         board[nr][nc] = null;
       }
     }
 
     movePiece(hero, nr, nc);
 
+    // NEXT LEVEL
     if (heroResult == Result.NEXT_LEVEL) {
       return new CollisionResult(points, Result.NEXT_LEVEL);
     }
 
+    // GAME OVER
     if (heroResult == Result.GAME_OVER) {
       return new CollisionResult(points, Result.GAME_OVER);
     }
 
+    // move enemies
     if (moveAllEnemies() == Result.GAME_OVER) {
       return new CollisionResult(points, Result.GAME_OVER);
     }
@@ -143,9 +158,7 @@ public class BoardImpl implements Board {
   private Result moveAllEnemies() {
     for (Enemy e : allEnemies()) {
       Result r = moveEnemyOnce(e);
-      if (r == Result.GAME_OVER) {
-        return Result.GAME_OVER;
-      }
+      if (r == Result.GAME_OVER) return Result.GAME_OVER;
     }
     return CONTINUE;
   }
@@ -169,7 +182,7 @@ public class BoardImpl implements Board {
       if (p instanceof Exit) continue;
       if (p instanceof Enemy) continue;
 
-      options.add(new int[] {nr, nc});
+      options.add(new int[]{nr, nc});
     }
 
     if (options.isEmpty()) return CONTINUE;
@@ -180,9 +193,17 @@ public class BoardImpl implements Board {
 
     Piece target = board[nr][nc];
 
-    if (target instanceof Hero) {
-      return Result.GAME_OVER;
+    if (target instanceof Hero hero) {
+      // If hero has a shield, consume it and kill the enemy instead of game over
+      if (hero.getShields() > 0) {
+        hero.consumeShield();        // use the shield
+        board[r][c] = null;          // remove this enemy from its old position
+        return CONTINUE;             // hero survives, enemy dies
+      } else {
+        return Result.GAME_OVER;     // no shields → lose
+      }
     }
+
     if (target instanceof Treasure) {
       board[nr][nc] = null;
     }
