@@ -55,12 +55,17 @@ public class GameView extends View {
         shieldLabel = new Label();
         shieldLabel.getStyleClass().add("label");
 
+        scoreLabel.setStyle("-fx-font-size: 22px;");
+        timerLabel.setStyle("-fx-font-size: 22px;");
+        shieldLabel.setStyle("-fx-font-size: 22px;");
+
+
         HBox topBar = new HBox(40, scoreLabel, timerLabel, shieldLabel);
         topBar.setAlignment(Pos.CENTER);
         topBar.setPadding(new Insets(10, 0, 20, 0));
         root.setTop(topBar);
 
-        updateTopBarLabels();
+        updateTopBarLabels();  // first fill of labels
 
         // ─────────────────────────────────────────────
         // BOARD GRID
@@ -77,7 +82,16 @@ public class GameView extends View {
                 tile.getStyleClass().add("tile");
                 tile.setMouseTransparent(true);
 
-                tile.setText(getEmoji(model.get(new Posn(r, c))));
+                // ⭐ MAKE BOARD BIGGER ⭐
+                tile.setPrefSize(60, 60);
+                tile.setMinSize(60, 60);
+                tile.setMaxSize(60, 60);
+
+                tile.setAlignment(Pos.CENTER);
+
+                tile.setStyle("-fx-font-size: 32px;");
+
+                tile.setText(getEmoji(model.get(new Posn(r , c))));
 
                 tileGrid[r][c] = tile;
                 grid.add(tile, c, r);
@@ -133,7 +147,7 @@ public class GameView extends View {
         // BOTTOM MECHANIC LABEL
         // ─────────────────────────────────────────────
 
-        Label mechanicLabel = new Label("🛡 Shield: Picking one up lets you survive one enemy hit! (Note: Shields dont carry over to the next leve!)");
+        Label mechanicLabel = new Label("🛡 Shield: Picking one up lets you survive one enemy hit! NOTE: Shields don't carry over to the next level!");
         mechanicLabel.getStyleClass().add("label");
 
         VBox bottomInfo = new VBox(10, mechanicLabel);
@@ -151,9 +165,8 @@ public class GameView extends View {
         return root;
     }
 
-    // -----------------------------------------------------
+
     // EMOJI MAP
-    // -----------------------------------------------------
     private String getEmoji(Piece p) {
         if (p instanceof Hero) return "🧙";
         if (p instanceof Enemy) return "👾";
@@ -164,9 +177,7 @@ public class GameView extends View {
         return "";
     }
 
-    // -----------------------------------------------------
-    // HERO MOVE HANDLER
-    // -----------------------------------------------------
+    // HANDLE MOVE
     private void handleMove(int dRow, int dCol, Runnable moveAction) {
         Hero heroBefore = findHero();
         if (heroBefore == null) return;
@@ -192,16 +203,13 @@ public class GameView extends View {
 
         Hero heroAfter = findHero();
         if (heroAfter == null) return;
-
         Posn after = heroAfter.getPosn();
 
         if (!before.equals(after)) {
             playFade(tileGrid[after.getRow()][after.getCol()]);
         }
 
-        // TREASURE ANIMATION — FIXED
         if (targetPiece instanceof Treasure && inBounds) {
-
             Label treasureTile = tileGrid[targetRow][targetCol];
 
             playPop(treasureTile);
@@ -216,9 +224,6 @@ public class GameView extends View {
         }
     }
 
-    // -----------------------------------------------------
-    // UPDATE LABELS (Score + Shields)
-    // -----------------------------------------------------
     private void updateTopBarLabels() {
         scoreLabel.setText("Score: " + model.getCurScore());
 
@@ -228,9 +233,6 @@ public class GameView extends View {
         }
     }
 
-    // -----------------------------------------------------
-    // REFRESH BOARD EMOJIS
-    // -----------------------------------------------------
     private void refreshBoardEmojis() {
         for (int r = 0; r < model.getHeight(); r++) {
             for (int c = 0; c < model.getWidth(); c++) {
@@ -241,9 +243,6 @@ public class GameView extends View {
         }
     }
 
-    // -----------------------------------------------------
-    // FIND HERO
-    // -----------------------------------------------------
     private Hero findHero() {
         for (int r = 0; r < model.getHeight(); r++) {
             for (int c = 0; c < model.getWidth(); c++) {
@@ -253,10 +252,6 @@ public class GameView extends View {
         }
         return null;
     }
-
-    // -----------------------------------------------------
-    // ANIMATIONS
-    // -----------------------------------------------------
 
     private void playFade(Label tile) {
         FadeTransition ft = new FadeTransition(Duration.millis(200), tile);
@@ -271,8 +266,8 @@ public class GameView extends View {
         st.setFromY(1.0);
         st.setToX(1.4);
         st.setToY(1.4);
-        st.setAutoReverse(true);
         st.setCycleCount(2);
+        st.setAutoReverse(true);
         st.play();
     }
 
@@ -298,9 +293,6 @@ public class GameView extends View {
         tt.play();
     }
 
-    // -----------------------------------------------------
-    // TIMER
-    // -----------------------------------------------------
     private void startTimer() {
         timer = new Timeline(
                 new KeyFrame(Duration.seconds(1), e -> {
@@ -314,9 +306,6 @@ public class GameView extends View {
         timer.play();
     }
 
-    // -----------------------------------------------------
-    // UPDATE (VIEW REFRESH)
-    // -----------------------------------------------------
     @Override
     public void update() {
 

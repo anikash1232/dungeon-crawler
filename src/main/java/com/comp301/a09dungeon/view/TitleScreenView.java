@@ -43,6 +43,12 @@ public class TitleScreenView extends View {
 
         VBox root = new VBox(25);
         root.setAlignment(Pos.CENTER);
+
+        root.setStyle("-fx-background-image: url('background.png'); " +
+                "-fx-background-size: cover; " +
+                "-fx-background-position: center; " +
+                "-fx-background-repeat: no-repeat;");
+
         root.getChildren().addAll(title, highScore, lastScore, startBtn, byName);
 
         return root;
