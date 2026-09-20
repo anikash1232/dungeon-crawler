@@ -61,10 +61,3 @@ Requires Java 17+ and Maven.
 ```bash
 mvn clean javafx:run
 ```
-
-## Notes
-
-Built for COMP 301 at UNC-Chapel Hill. The project skeleton — interfaces, piece stubs and
-the JavaFX harness — was course-provided scaffolding; the implementation is mine, about
-1,100 lines across the view layer, board logic, model and piece behaviours. The shield
-mechanic is an extension beyond the base requirements.
